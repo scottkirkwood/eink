@@ -50,7 +50,7 @@ Transform an Amazon Kindle Paperwhite (tested on Paperwhite 3, 7th Gen) into a d
 └────────────────────────────────────────────────────────┘
 ```
 
-The server backend is written in pure Go and runs on Google App Engine within the [`scottkirkwood/forusers.com`](https://github.com/scottkirkwood/forusers.com) repository. This repository contains the Kindle client daemon, KUAL extension, configuration, and setup utilities.
+The server backend is written in pure Go and runs on Google App Engine (serving endpoints at `https://www.forusers.com/kindle`). This repository contains the Kindle client daemon, KUAL extension, configuration, and setup utilities.
 
 ---
 
