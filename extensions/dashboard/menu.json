@@ -1,0 +1,38 @@
+{
+	"items": [
+		{
+			"name": "Weather Dashboard",
+			"priority": 1,
+			"items": [
+				{
+					"name": "Start Dashboard (Auto)",
+					"action": "/mnt/us/dashboard/dashboard.sh",
+					"params": "start",
+					"priority": 1,
+					"exitmenu": false
+				},
+				{
+					"name": "Refresh Now",
+					"action": "/mnt/us/dashboard/dashboard.sh",
+					"params": "once",
+					"priority": 2,
+					"exitmenu": false
+				},
+				{
+					"name": "Test Screen (Local Image)",
+					"action": "/mnt/us/dashboard/dashboard.sh",
+					"params": "test",
+					"priority": 3,
+					"exitmenu": false
+				},
+				{
+					"name": "Stop Dashboard",
+					"action": "/mnt/us/dashboard/dashboard.sh",
+					"params": "stop",
+					"priority": 4,
+					"exitmenu": false
+				}
+			]
+		}
+	]
+}

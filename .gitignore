@@ -1,0 +1,14 @@
+# Downloaded jailbreak packages and third-party binaries
+watchthis-*
+*.zip
+*.tar.xz
+*.tar.gz
+.demo/
+kual/
+fbink
+
+# Runtime logs and temporary files
+*.log
+/tmp/
+.deploy_state/
+.DS_Store
