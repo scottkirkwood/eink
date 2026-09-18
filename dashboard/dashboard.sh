@@ -24,9 +24,11 @@ ROTATION="${ROTATION:-90}"
 PREVENT_SLEEP="${PREVENT_SLEEP:-1}"
 AUTO_BACKLIGHT="${AUTO_BACKLIGHT:-1}"
 BACKLIGHT_PLUGGED_INTENSITY="${BACKLIGHT_PLUGGED_INTENSITY:-14}"
+ENABLE_TOUCH="${ENABLE_TOUCH:-1}"
 
 PID_FILE="/tmp/kindle_dashboard.pid"
 POWER_PID_FILE="/tmp/kindle_power_monitor.pid"
+TOUCH_PID_FILE="/tmp/kindle_touch.pid"
 TMP_IMG="/tmp/dashboard.png"
 
 # Setup fbink with image support (usbnet/bin/fbink has full PNG/JPEG support)
@@ -142,6 +144,47 @@ fetch_and_display() {
     fi
 }
 
+start_touch_listener() {
+    if [ "$ENABLE_TOUCH" -ne 1 ]; then
+        echo "Touch listener is disabled in config (ENABLE_TOUCH=0)"
+        return 0
+    fi
+
+    if [ -f "$TOUCH_PID_FILE" ]; then
+        TPID=$(cat "$TOUCH_PID_FILE" 2>/dev/null)
+        if [ -n "$TPID" ] && kill -0 "$TPID" 2>/dev/null; then
+            echo "Touch listener is already running (PID $TPID)"
+            return 0
+        fi
+    fi
+
+    # Prefer compiled touch_listener binary, fallback to touch_listener.sh
+    if [ -x "${DIR}/touch_listener" ]; then
+        echo "Starting compiled touch listener (${DIR}/touch_listener)..."
+        "${DIR}/touch_listener" -config "$CONFIG" >/mnt/us/dashboard/touch.log 2>&1 &
+        echo $! > "$TOUCH_PID_FILE"
+        echo "Touch listener started (PID $(cat "$TOUCH_PID_FILE"))."
+    elif [ -x "${DIR}/touch_listener.sh" ]; then
+        echo "Starting shell touch listener (${DIR}/touch_listener.sh)..."
+        /bin/sh "${DIR}/touch_listener.sh" >/mnt/us/dashboard/touch.log 2>&1 &
+        echo $! > "$TOUCH_PID_FILE"
+        echo "Touch listener started (PID $(cat "$TOUCH_PID_FILE"))."
+    else
+        echo "Warning: No executable touch listener found in ${DIR}"
+    fi
+}
+
+stop_touch_listener() {
+    if [ -f "$TOUCH_PID_FILE" ]; then
+        TPID=$(cat "$TOUCH_PID_FILE" 2>/dev/null)
+        if [ -n "$TPID" ]; then
+            kill "$TPID" 2>/dev/null
+        fi
+        rm -f "$TOUCH_PID_FILE"
+        echo "Touch listener stopped."
+    fi
+}
+
 start_daemon() {
     if [ -f "$PID_FILE" ]; then
         OLD_PID=$(cat "$PID_FILE" 2>/dev/null)
@@ -160,6 +203,9 @@ start_daemon() {
 
     # Initial fetch & backlight check immediately
     fetch_and_display
+
+    # Start interactive touch monitor
+    start_touch_listener
 
     # Spawn real-time power event monitor for instant backlight switching on plug/unplug
     if [ "$AUTO_BACKLIGHT" -eq 1 ]; then
@@ -207,6 +253,8 @@ stop_daemon() {
         rm -f "$POWER_PID_FILE"
     fi
 
+    stop_touch_listener
+
     lipc-set-prop -i com.lab126.powerd preventScreenSaver 0 2>/dev/null
 }
 
@@ -233,14 +281,28 @@ case "$1" in
         display_image "${DIR}/test.png"
         ;;
     status)
+        IS_RUNNING=0
         if [ -f "$PID_FILE" ]; then
             PID=$(cat "$PID_FILE" 2>/dev/null)
             if [ -n "$PID" ] && kill -0 "$PID" 2>/dev/null; then
                 echo "Dashboard daemon is RUNNING (PID $PID)"
-                exit 0
+                IS_RUNNING=1
             fi
         fi
-        echo "Dashboard daemon is STOPPED"
+        if [ "$IS_RUNNING" -eq 0 ]; then
+            echo "Dashboard daemon is STOPPED"
+        fi
+
+        if [ -f "$TOUCH_PID_FILE" ]; then
+            TPID=$(cat "$TOUCH_PID_FILE" 2>/dev/null)
+            if [ -n "$TPID" ] && kill -0 "$TPID" 2>/dev/null; then
+                echo "Touch listener is RUNNING (PID $TPID)"
+            else
+                echo "Touch listener is STOPPED"
+            fi
+        else
+            echo "Touch listener is STOPPED"
+        fi
         ;;
     *)
         echo "Usage: $0 {start|stop|restart|once|test|status}"

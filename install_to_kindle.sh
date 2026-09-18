@@ -25,6 +25,13 @@ echo "Installing Kindle Dashboard files to $KINDLE_MOUNT..."
 # 1. Copy dashboard directory
 mkdir -p "$KINDLE_MOUNT/dashboard"
 cp -v "$DIR/dashboard/dashboard.sh" "$KINDLE_MOUNT/dashboard/dashboard.sh"
+if [ -f "$DIR/dashboard/touch_listener" ]; then
+    cp -v "$DIR/dashboard/touch_listener" "$KINDLE_MOUNT/dashboard/touch_listener"
+fi
+if [ -f "$DIR/dashboard/touch_listener.sh" ]; then
+    cp -v "$DIR/dashboard/touch_listener.sh" "$KINDLE_MOUNT/dashboard/touch_listener.sh"
+fi
+
 if [ ! -f "$KINDLE_MOUNT/dashboard/config.cfg" ]; then
     cp -v "$DIR/dashboard/config.cfg" "$KINDLE_MOUNT/dashboard/config.cfg"
 else
@@ -39,6 +46,12 @@ cp -v "$DIR/dashboard/dashboard.sh" "$KINDLE_MOUNT/extensions/dashboard/bin/dash
 
 # 3. Ensure executable permissions
 chmod +x "$KINDLE_MOUNT/dashboard/dashboard.sh" "$KINDLE_MOUNT/extensions/dashboard/bin/dashboard.sh" || true
+if [ -f "$KINDLE_MOUNT/dashboard/touch_listener" ]; then
+    chmod +x "$KINDLE_MOUNT/dashboard/touch_listener" || true
+fi
+if [ -f "$KINDLE_MOUNT/dashboard/touch_listener.sh" ]; then
+    chmod +x "$KINDLE_MOUNT/dashboard/touch_listener.sh" || true
+fi
 
 echo "Syncing filesystem cache..."
 sync

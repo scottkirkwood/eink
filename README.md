@@ -20,6 +20,11 @@ Transform an Amazon Kindle Paperwhite (tested on Paperwhite 3, 7th Gen) into a d
   * 3-day forecast with vector weather icons.
 * **Upcoming Schedule & Bookings:**
   * Court bookings (Tennis, Movati, Golf), Google Calendar events, and local KW/Stratford events.
+* **Shared To-Do & Task Checklist (Interactive!):**
+  * Displays active household chores, reminders, and to-do items from `forusers.com/tasks`.
+  * **Interactive Touch Dismissal:** Tap any task checkbox directly on the Kindle touchscreen to check it off! The item is completed in the cloud Datastore and the screen immediately refreshes with a strike-through.
+  * **Tap-to-Refresh:** Tap anywhere on the Weather or Clock column to immediately pull fresh weather, market quotes, and tasks.
+  * **Mobile Web Companion:** Add or manage tasks anytime from your phone or browser at `https://www.forusers.com/tasks`.
 * **Smart Auto-Backlight (Frontlight):**
   * **Plugged in (Wall charger or USB):** Frontlight automatically turns **ON** to a clean, bright intensity (level `14` of 24).
   * **On battery:** Frontlight turns completely **OFF** (level `0`) to maximize battery life.
@@ -59,8 +64,11 @@ The server backend is written in pure Go and runs on Google App Engine (serving 
 ```
 .
 ├── dashboard/
-│   ├── config.cfg           # Device settings (rotation, interval, backlight)
-│   └── dashboard.sh         # Daemon, refresh loop, FBInk renderer, backlight monitor
+│   ├── config.cfg           # Device settings (rotation, interval, backlight, touch)
+│   ├── dashboard.sh         # Daemon, refresh loop, FBInk renderer, backlight monitor
+│   ├── touch_listener       # High-performance static ARM Go touch event daemon
+│   ├── touch_listener.sh    # Pure POSIX shell fallback touch event listener
+│   └── touch_listener.go    # Source code for touch listener daemon
 ├── extensions/
 │   └── dashboard/
 │       ├── config.xml       # KUAL extension manifest
@@ -128,6 +136,11 @@ AUTO_BACKLIGHT=1
 
 # Frontlight brightness level when plugged in (0 to 24, default: 14)
 BACKLIGHT_PLUGGED_INTENSITY=14
+
+# Interactive touchscreen controls:
+# 1 = Enable touch listener (tap task to complete, tap weather to refresh)
+# 0 = Disable touch listener
+ENABLE_TOUCH=1
 ```
 
 ---
