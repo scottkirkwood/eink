@@ -78,6 +78,7 @@ manage_backlight() {
 
 display_image() {
     IMG_PATH="$1"
+    FAST_MODE="${2:-0}"
     if [ ! -s "$IMG_PATH" ]; then
         echo "ERROR: Image $IMG_PATH is missing or empty"
         return 1
@@ -89,15 +90,21 @@ display_image() {
         return 1
     fi
 
-    echo "Rendering $IMG_PATH to e-ink screen using ${FBINK_BIN}..."
-    "$FBINK_BIN" -c -f -i "$IMG_PATH"
+    if [ "$FAST_MODE" = "1" ]; then
+        echo "Fast rendering $IMG_PATH to e-ink screen using ${FBINK_BIN}..."
+        "$FBINK_BIN" -i "$IMG_PATH"
+    else
+        echo "Full refresh rendering $IMG_PATH to e-ink screen using ${FBINK_BIN}..."
+        "$FBINK_BIN" -c -f -i "$IMG_PATH"
+    fi
     RES=$?
     echo "FBInk exit code: $RES"
     return $RES
 }
 
 fetch_and_display() {
-    echo "[$(date '+%Y-%m-%d %H:%M:%S')] Fetching latest dashboard..."
+    FAST_MODE="${1:-0}"
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] Fetching latest dashboard (fast_mode=${FAST_MODE})..."
 
     # Ensure WiFi is active
     lipc-set-prop -i com.lab126.cmd wirelessEnable 1 2>/dev/null
@@ -135,11 +142,11 @@ fetch_and_display() {
     if [ -s "$TMP_IMG" ]; then
         SIZE=$(ls -l "$TMP_IMG" 2>/dev/null | awk '{print $5}')
         echo "Downloaded $SIZE bytes successfully"
-        display_image "$TMP_IMG"
+        display_image "$TMP_IMG" "$FAST_MODE"
     else
         echo "ERROR: Download failed. Trying backup local image..."
         if [ -s "${DIR}/test.png" ]; then
-            display_image "${DIR}/test.png"
+            display_image "${DIR}/test.png" "$FAST_MODE"
         fi
     fi
 }
@@ -271,8 +278,7 @@ case "$1" in
         start_daemon
         ;;
     once|refresh)
-        sleep 1
-        fetch_and_display
+        fetch_and_display 1
         ;;
     test)
         sleep 1

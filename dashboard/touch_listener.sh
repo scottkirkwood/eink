@@ -17,9 +17,18 @@ fi
 
 SERVER_URL="${SERVER_URL:-https://www.forusers.com}"
 ROTATION="${ROTATION:-90}"
-EVENT_DEV="${EVENT_DEVICE:-/dev/input/event0}"
-HW_WIDTH=1072
-HW_HEIGHT=1448
+if [ -z "$EVENT_DEVICE" ] || [ "$EVENT_DEVICE" = "/dev/input/event0" ]; then
+    TOUCH_NAME=$(grep -E -B 2 -A 4 -i "touch|zforce|elan|cyttsp" /proc/bus/input/devices 2>/dev/null | grep -o 'event[0-9]' | head -n1)
+    if [ -n "$TOUCH_NAME" ] && [ -e "/dev/input/$TOUCH_NAME" ]; then
+        EVENT_DEV="/dev/input/$TOUCH_NAME"
+    elif [ -e "/dev/input/event1" ]; then
+        EVENT_DEV="/dev/input/event1"
+    else
+        EVENT_DEV="/dev/input/event0"
+    fi
+else
+    EVENT_DEV="$EVENT_DEVICE"
+fi
 
 if [ ! -e "$EVENT_DEV" ]; then
     echo "ERROR: Event device $EVENT_DEV does not exist."
@@ -31,6 +40,16 @@ echo "Listening on $EVENT_DEV (Rotation: $ROTATION, Server: $SERVER_URL)..."
 LAST_TAP=0
 CUR_X=-1
 CUR_Y=-1
+
+show_instant_feedback() {
+    MSG="$1"
+    for candidate in /tmp/fbink /mnt/us/dashboard/fbink /mnt/us/usbnet/bin/fbink; do
+        if [ -x "$candidate" ]; then
+            "$candidate" -pmh -M 0 "$MSG" 2>/dev/null &
+            break
+        fi
+    done
+}
 
 handle_tap() {
     RAW_X="$1"
@@ -69,6 +88,7 @@ handle_tap() {
         TASK_IDX=$(( (LAND_Y - 524) / 74 ))
         if [ "$TASK_IDX" -ge 0 ] && [ "$TASK_IDX" -lt 6 ]; then
             echo "[$(date '+%H:%M:%S')] Hit Task Checkbox [Row $TASK_IDX]! Dismissing on server..."
+            show_instant_feedback "  [✓] Checking Off Task $(( TASK_IDX + 1 ))...  "
             curl -k -s -S -m 5 -X POST "${SERVER_URL}/api/kindle/tasks/dismiss?index=${TASK_IDX}" >/dev/null 2>&1 &
             # Immediate refresh
             /mnt/us/dashboard/dashboard.sh refresh &
@@ -78,6 +98,7 @@ handle_tap() {
 
     # Tap on weather, clock, or other area -> refresh dashboard
     echo "[$(date '+%H:%M:%S')] Tap on dashboard -> Refreshing..."
+    show_instant_feedback "  ↻ Refreshing Dashboard...  "
     /mnt/us/dashboard/dashboard.sh refresh &
 }
 

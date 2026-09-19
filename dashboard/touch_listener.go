@@ -48,10 +48,46 @@ const (
 	// EVIOCGRAB ioctl (_IOW('E', 0x90, int)) to grab evdev device exclusively
 	EVIOCGRAB = 0x40044590
 
-	// Physical portrait dimensions of Kindle Paperwhite 3 digitizer
+// Physical portrait dimensions of Kindle Paperwhite 3 digitizer
 	HwWidth  = 1072
 	HwHeight = 1448
 )
+
+func findTouchDevice() string {
+	// Check /proc/bus/input/devices first
+	data, err := os.ReadFile("/proc/bus/input/devices")
+	if err == nil {
+		blocks := strings.Split(string(data), "\n\n")
+		for _, block := range blocks {
+			lower := strings.ToLower(block)
+			if strings.Contains(lower, "touch") || strings.Contains(lower, "zforce") ||
+				strings.Contains(lower, "elan") || strings.Contains(lower, "cyttsp") ||
+				strings.Contains(lower, "wacom") {
+				for _, line := range strings.Split(block, "\n") {
+					line = strings.TrimSpace(line)
+					if strings.HasPrefix(line, "H: Handlers=") {
+						for _, field := range strings.Fields(line) {
+							if strings.HasPrefix(field, "event") {
+								path := "/dev/input/" + field
+								if _, err := os.Stat(path); err == nil {
+									log.Printf("[Touch Listener] Auto-detected touchscreen device: %s", path)
+									return path
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
+	// Fallback check: Kindle PW3 digitizer is almost always event1
+	if _, err := os.Stat("/dev/input/event1"); err == nil {
+		log.Printf("[Touch Listener] Using fallback touchscreen device: /dev/input/event1")
+		return "/dev/input/event1"
+	}
+	return "/dev/input/event0"
+}
 
 func grabDevice(fd uintptr, grab bool) error {
 	val := uintptr(0)
@@ -76,7 +112,7 @@ func loadConfig(path string) Config {
 	cfg := Config{
 		ServerURL:    "https://www.forusers.com",
 		Rotation:     90,
-		EventDevice:  "/dev/input/event0",
+		EventDevice:  findTouchDevice(),
 		DashboardBin: "/mnt/us/dashboard/dashboard.sh",
 	}
 
@@ -186,6 +222,20 @@ func dismissTaskOnServer(serverURL string, taskIndex int) error {
 	return nil
 }
 
+func showInstantFeedback(message string) {
+	fbinkPath := ""
+	for _, p := range []string{"/tmp/fbink", "/mnt/us/dashboard/fbink", "/mnt/us/usbnet/bin/fbink"} {
+		if _, err := os.Stat(p); err == nil {
+			fbinkPath = p
+			break
+		}
+	}
+	if fbinkPath != "" {
+		// Render immediate inverted pill banner centered on screen in ~30ms
+		_ = exec.Command(fbinkPath, "-pmh", "-M", "0", message).Run()
+	}
+}
+
 func handleTap(cfg Config, landX, landY int) {
 	log.Printf("[Touch] Tap detected at Landscape (X=%d, Y=%d)", landX, landY)
 
@@ -197,6 +247,10 @@ func handleTap(cfg Config, landX, landY int) {
 		if taskIndex >= 0 && taskIndex < 6 {
 			log.Printf("[Touch] Tap HIT on Task Checkbox [Row %d]! Dismissing task...", taskIndex)
 
+			// 1. Show instant visual feedback (<50ms) so user knows tap was registered
+			go showInstantFeedback(fmt.Sprintf("  [✓] Checking Off Task %d...  ", taskIndex+1))
+
+			// 2. Fire dismiss request and trigger fast screen update
 			go func(idx int) {
 				if err := dismissTaskOnServer(cfg.ServerURL, idx); err != nil {
 					log.Printf("[Touch] Warning: Task dismiss API call failed: %v", err)
@@ -210,6 +264,7 @@ func handleTap(cfg Config, landX, landY int) {
 
 	// Any other tap (e.g. Weather, Clock, Markets, Schedule) acts as Tap-to-Refresh
 	log.Printf("[Touch] Tap on dashboard body -> Refreshing screen...")
+	go showInstantFeedback("  ↻ Refreshing Dashboard...  ")
 	go triggerDashboardRefresh(cfg.DashboardBin)
 }
 
