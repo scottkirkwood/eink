@@ -45,10 +45,25 @@ const (
 	ABS_MT_POSITION_Y  = 0x36 // 54
 	ABS_MT_TRACKING_ID = 0x39 // 57
 
+	// EVIOCGRAB ioctl (_IOW('E', 0x90, int)) to grab evdev device exclusively
+	EVIOCGRAB = 0x40044590
+
 	// Physical portrait dimensions of Kindle Paperwhite 3 digitizer
 	HwWidth  = 1072
 	HwHeight = 1448
 )
+
+func grabDevice(fd uintptr, grab bool) error {
+	val := uintptr(0)
+	if grab {
+		val = uintptr(1)
+	}
+	_, _, errno := syscall.Syscall(syscall.SYS_IOCTL, fd, uintptr(EVIOCGRAB), val)
+	if errno != 0 {
+		return errno
+	}
+	return nil
+}
 
 type Config struct {
 	ServerURL    string
@@ -246,6 +261,14 @@ func runEventLoop(cfg Config) error {
 		return err
 	}
 	defer devFile.Close()
+
+	// Grab device exclusively so underlying Kindle apps / KUAL do NOT receive touches
+	if err := grabDevice(devFile.Fd(), true); err != nil {
+		log.Printf("[Touch Listener] Warning: Could not grab %s exclusively (ioctl EVIOCGRAB): %v", cfg.EventDevice, err)
+	} else {
+		log.Printf("[Touch Listener] Successfully grabbed %s exclusively (shielding underlying UI).", cfg.EventDevice)
+		defer grabDevice(devFile.Fd(), false)
+	}
 
 	log.Printf("[Touch Listener] Successfully opened %s. Listening for touch events...", cfg.EventDevice)
 

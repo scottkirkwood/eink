@@ -9,21 +9,21 @@
 					"action": "/mnt/us/dashboard/dashboard.sh",
 					"params": "start",
 					"priority": 1,
-					"exitmenu": false
+					"exitmenu": true
 				},
 				{
 					"name": "Refresh Now",
 					"action": "/mnt/us/dashboard/dashboard.sh",
 					"params": "once",
 					"priority": 2,
-					"exitmenu": false
+					"exitmenu": true
 				},
 				{
 					"name": "Test Screen (Local Image)",
 					"action": "/mnt/us/dashboard/dashboard.sh",
 					"params": "test",
 					"priority": 3,
-					"exitmenu": false
+					"exitmenu": true
 				},
 				{
 					"name": "Stop Dashboard",
